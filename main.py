@@ -22,6 +22,7 @@ async def on_ready():
     else:
         pass
 
+
 @client.event 
 async def on_member_join(member):
     if curs.execute(f"Select id from users where id = {member.id}").fetchone() is None:
@@ -29,6 +30,7 @@ async def on_member_join(member):
         connect.commit()
     else:
         pass
+
 
 @client.command(aliases = ['balance'])
 async def _balance(ctx, member:discord.Member = None):
@@ -39,7 +41,6 @@ async def _balance(ctx, member:discord.Member = None):
     else:
         await ctx.send(embed = discord.Embed(
             description = f"""Твой баланс**{member}** **{curs.execute("Select cash From users where id = {}".format(member.id)).fetchone()[0]} **"""
-
 
 
 @client.command(aliases = ['award'])
@@ -54,8 +55,6 @@ async def _award(ctx, member:discord.Member = None, amount: int = None)
             else:
                 curs.execute("Update users Set cash = cash + {} Where id = {}".format(amount, member.id))
                 connect.commit()
-
-
 
               
 @client.command(aliases = ['take'])

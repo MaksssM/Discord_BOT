@@ -65,15 +65,15 @@ async def _award(ctx, member: discord.Member = None, amount: int = None):
 @client.command(aliases = ['take'])
 async def _take(ctx, member:discord.Member = None, amount = None):
     if member is None:
-        await ctx.send(f"**{ctx.author}, укажите гандона, которому выдать баланс")
+        await ctx.send(f"**{ctx.author}**, укажите гандона, которому выдать баланс")
     else:
         if amount is None:
-            await ctx.send(f"**{ctx.author}, укажите сумму, которую забираешь")
+            await ctx.send(f"**{ctx.author}**, укажите сумму, которую забираешь")
         elif int(amount) == 'all':
             curs.execute("UPDATE users SET cash = {} Where id = {}".format(0, member.id))
             connect.commit() 
         elif int(amount) < 1:
-            await ctx.send(f"**{ctx.author}, укажи больше 1**")
+            await ctx.send(f"**{ctx.author}**, укажи больше 1")
         else:
             curs.execute("UPDATE users SET cash = cash - {} Where id = {}".format(int(amount), member.id))
             connect.commit()

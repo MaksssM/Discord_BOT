@@ -49,6 +49,7 @@ async def _balance(ctx, member:discord.Member = None):
         ))
 
 @client.command(aliases = ['award'])
+@commands.has_permissions(administrator = True)
 async def _award(ctx, member: discord.Member = None, amount: int = None):
     if member is None:
         await ctx.send(f"**{ctx.author}**, укажите гандона, которому выдать баланс")
@@ -63,6 +64,7 @@ async def _award(ctx, member: discord.Member = None, amount: int = None):
 
               
 @client.command(aliases = ['take'])
+@commands.has_permissions(administrator = True)
 async def _take(ctx, member:discord.Member = None, amount = None):
     if member is None:
         await ctx.send(f"**{ctx.author}**, укажите гандона, которому выдать баланс")
@@ -80,13 +82,13 @@ async def _take(ctx, member:discord.Member = None, amount = None):
 
 @client.command(aliases = ['clear'])
 @commands.has_permissions(administrator = True)
-async def clear(ctx, amount = 1):
+async def _clear(ctx, amount = 1):
     await ctx.channel.purge(limit = amount)  
 
 
-@client.commands(aliases = ['kick'])
+@client.command(aliases = ['kick'])
 @commands.has_permissions(administrator = True)
-async def kick(ctx, member:discord.Member):
+async def _kick(ctx, member:discord.Member):
     await ctx.channel.purge(limit = 1)
     await member.kick(reason = reason)
 

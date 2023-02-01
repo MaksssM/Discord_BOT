@@ -78,8 +78,17 @@ async def _take(ctx, member:discord.Member = None, amount = None):
             curs.execute("UPDATE users SET cash = cash - {} Where id = {}".format(int(amount), member.id))
             connect.commit()
 
-@client.command(name='clear')
+@client.command(aliases = ['clear'])
+@commands.has_permissions(administrator = True)
 async def clear(ctx, amount = 1):
-    await ctx.channel.purge(limit = amount)     
+    await ctx.channel.purge(limit = amount)  
+
+
+@client.commands(aliases = ['kick'])
+@commands.has_permissions(administrator = True)
+async def kick(ctx, member:discord.Member):
+    await ctx.channel.purge(limit = 1)
+    await member.kick(reason = reason)
+
 
 client.run(settings['TOKEN'])

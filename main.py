@@ -77,15 +77,6 @@ async def on_message(message):
     conn.commit()
 
     if message.content.startswith("!balance"):
-        #c.execute(
-            #"""SELECT balance FROM users WHERE user_id=?""", (user_id,)
-        #)
-        #result = c.fetchone()
-        #if result:
-            #balance = result[0]
-            #await message.channel.send(f"{username} balance: {balance}")
-        #else:
-            #await message.channel.send(f"{username} not found")
         pass
 
     conn.close()
@@ -110,9 +101,10 @@ async def on_voice_state_update(member, before, after):
         task = asyncio.create_task(add_coins())
         user.task = task
     elif before.channel is not None and after.channel is None:
-        if hasattr(user, 'task'):
+        if hasattr(user, 'task') and user.task is not None:
             user.task.cancel()
-            del user.task
+            user.task = None
+
 
 
 client.run(settings['TOKEN'])

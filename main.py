@@ -1,96 +1,100 @@
+import asyncio
 import discord
 import sqlite3
 from discord.ext import commands
 from config import settings
 
-
-intents = discord.Intents.all()
-intents.members = True
-
-connect = sqlite3.connect('zalupa')
-curs = connect.cursor()
+intents = discord.Intents.default()
+intents.message_content = True
 
 client = commands.Bot(command_prefix = settings['PREFIX'], intents=intents)
 
+class User:
+    def __init__(self, user_id):
+        self.user_id = user_id
+        self.coins = 0
+
+users = {}
+
+
+
+
+@client.command(name="balance")
+async def balance(ctx, member: discord.Member = None):
+    if not member:
+        user_id = str(ctx.author.id)
+        user = users.get(user_id)
+        if not user:
+            user = User(user_id)
+            users[user_id] = user
+    else:
+        user_id = str(member.id)
+        user = users.get(user_id)
+        if not user:
+            user = User(user_id)
+            users[user_id] = user
+
+    await ctx.send(f"{member.mention}'s balance is {user.coins} coins.")
+
+
+
+@client.command(name="!add")
+async def add(ctx, amount: int, user: discord.User):
+    user_id = str(user.id)
+    if user_id not in users:
+        users[user_id] = User(user_id)
+    user = users[user_id]
+    user.coins += amount
+    await ctx.send(f'{amount} coins added to {user.mention}`s balance')
+
+
 @client.event
-async def on_ready():
-    curs.execute("""Create Table if NOT exists users (
-        name TEXT,
-        id INT,
-        cash BIGINT
-    )""")
-    connect.commit()    
-    for guild in client.guilds:
-        for member in guild.members:
-            if curs.execute(f"SELECT id FROM users WHERE id = {member.id}").fetchone() is None:
-                curs.execute(f"INSERT INTO users VALUES ('{member}', {member.id}, {0})")
-            else:
-                pass
+async def on_message(message):
+    user = message.author
+    user_id = user.id
+    username = user.name
 
+    conn = sqlite3.connect('discord_bot.db')
+    c = conn.cursor()
 
-@client.event 
-async def on_member_join(member):
-    if curs.execute(f"SELECT id FROM users WHERE id = {member.id}").fetchone() is None:
-        curs.execute(f"INSERT INTO users VALUES ('{member}', {member.id}, {0})")
-        connect.commit()
-    else:
-        pass
+    c.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, username TEXT, balance INTEGER)''')
+    conn.commit()
 
+    c.execute('''INSERT OR IGNORE INTO users (user_id, username, balance)
+                 VALUES (?, ?, ?)''',
+                 (user_id, username, 0))
+    c.execute('''UPDATE users SET username = ? WHERE user_id = ?''', (username, user_id))
+    conn.commit()
 
-@client.command(aliases = ['balance'])
-async def _balance(ctx, member:discord.Member = None):
-    if member is None:
-        await ctx.send(embed = discord.Embed(
-            description = f"""Баланс **{ctx.author}** = **{curs.execute("SELECT cash FROM users WHERE id = {}".format(ctx.author.id)).fetchone()[0]} **"""
-        ))
-    else:
-        await ctx.send(embed = discord.Embed(
-            description = f"""Баланс **{member}** = **{curs.execute("SELECT cash FROM users WHERE id = {}".format(member.id)).fetchone()[0]} **"""
-        ))
-
-@client.command(aliases = ['award'])
-@commands.has_permissions(administrator = True)
-async def _award(ctx, member: discord.Member = None, amount: int = None):
-    if member is None:
-        await ctx.send(f"**{ctx.author}**, укажите гандона, которому выдать баланс")
-    else:
-        if amount is None:
-            await ctx.send(f"**{ctx.author}**, укажите сумму, которую начисляешь")
-        elif amount < 1:
-            await ctx.send(f"**{ctx.author}**, укажи больше 1")
+    if message.content.startswith('!balance'):
+        c.execute('''SELECT balance FROM users WHERE user_id=?''', (user_id,))
+        result = c.fetchone()
+        if result:
+            balance = result[0]
+            await message.channel.send(f'{username} balance: {balance}')
         else:
-            curs.execute("Update users Set cash = cash + {} Where id = {}".format(amount, member.id))
-            connect.commit()
+            await message.channel.send(f'{username} not found')
 
-              
-@client.command(aliases = ['take'])
-@commands.has_permissions(administrator = True)
-async def _take(ctx, member:discord.Member = None, amount = None):
-    if member is None:
-        await ctx.send(f"**{ctx.author}**, укажите гандона, которому выдать баланс")
-    else:
-        if amount is None:
-            await ctx.send(f"**{ctx.author}**, укажите сумму, которую забираешь")
-        elif int(amount) == 'all':
-            curs.execute("UPDATE users SET cash = {} Where id = {}".format(0, member.id))
-            connect.commit() 
-        elif int(amount) < 1:
-            await ctx.send(f"**{ctx.author}**, укажи больше 1")
-        else:
-            curs.execute("UPDATE users SET cash = cash - {} Where id = {}".format(int(amount), member.id))
-            connect.commit()
+    conn.close()
 
-@client.command(aliases = ['clear'])
-@commands.has_permissions(administrator = True)
-async def _clear(ctx, amount = 1):
-    await ctx.channel.purge(limit = amount)  
+@client.event
+async def on_voice_state_update(member, before, after):
+    user_id = str(member.id)
+    if user_id not in users:
+        users[user_id] = User(user_id)
+    user = users[user_id]
 
-
-@client.command(aliases = ['kick'])
-@commands.has_permissions(administrator = True)
-async def _kick(ctx, member:discord.Member):
-    await ctx.channel.purge(limit = 1)
-    await member.kick(reason = reason)
+    if before.channel is None and after.channel is not None:
+        if not hasattr(user, 'task'):
+            async def add_coins():
+                while True:
+                    await asyncio.sleep(60)
+                    user.coins += 1
+            task = asyncio.create_task(add_coins())
+            user.task = task
+    elif before.channel is not None and after.channel is None:
+        if hasattr(user, 'task'):
+            user.task.cancel()
 
 
 client.run(settings['TOKEN'])
